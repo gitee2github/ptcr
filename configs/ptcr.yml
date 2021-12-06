@@ -1,0 +1,16 @@
+log_lever       : 3
+image_name      : busybox
+mixed_cmd       : 0
+
+measure_count   :
+        serially : 10
+        parallerlly : 10
+
+runtime_names :
+        - isula
+        - docker
+runtime_endpoint:
+start_cmd :
+        - /bin/sh
+        - -c
+        - while true; do echo hello world; sleep 1; done
