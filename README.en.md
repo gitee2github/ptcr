@@ -1,7 +1,7 @@
 # ptcr
 
 #### Description
-A tool for container runtime performance measure.
+ptcr is a tool to run performance test for container runtime, you can do all kinds of container runtime which support cri spec, and generate test report finally.
 
 #### Software Architecture
 Software architecture description
