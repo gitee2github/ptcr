@@ -13,124 +13,272 @@
  * Create: 2021-11-29
  * Description: measure by cri interface implement.
  ******************************************************************************/
+#ifdef CRI_CLIENT
 #include "api_wrap.h"
 #include <stdlib.h>
 #include "utils.h"
 
-#define CONFIG_DIR      "/etc/ptcr/"
-#define POD_CONFIG      CONFIG_DIR "pod_config.json "
-#define CONT_CONFIG     CONFIG_DIR "container_config.json "
-#define COMMAND_PREFIX  "crictl --runtime-endpoint "
-#define ID_LEN          (128)
+std::string RuntimeClient::GetVersion(const string &version)
+{
+    runtime::v1alpha2::VersionRequest request;
+    runtime::v1alpha2::VersionResponse response;
+    ClientContext context; // used to convey extra information
+
+    request.set_version(version);
+    Status status = stub_->Version(&context, request, &response);
+    if (status.ok()) {
+        return response.version();
+    }
+
+    std::cout << status.error_code() << ": " << status.error_message() << endl;
+    return "RPC failed";
+}
+
+PodSandboxConfig *GenerateSandboxConfig()
+{
+    /* need to be saved */
+    PodSandboxMetadata *metaData;
+    LinuxPodSandboxConfig *LinuxPodSbCfg;
+    PodSandboxConfig *sdbConifg;
+
+    metaData = new PodSandboxMetadata; /* need save */
+    metaData->Clear();
+    metaData->set_name("nginx-sandbox");
+    metaData->set_namespace_("default");
+    metaData->set_attempt(1);
+
+    char *uid = utils_generate_random_str(26);
+    metaData->set_uid(uid);
+
+    sdbConifg = new PodSandboxConfig;
+    sdbConifg->Clear();
+    sdbConifg->set_allocated_metadata(metaData); /* Allocated means we need allocate data first */
+    sdbConifg->set_log_directory("/tmp/ptcr_cri.log");
+
+    LinuxPodSbCfg = new LinuxPodSandboxConfig;
+    LinuxPodSbCfg->Clear();
+    sdbConifg->set_allocated_linux(LinuxPodSbCfg);
+
+    return sdbConifg;
+}
+
+int RuntimeClient::RunPodSandBox(string *podID)
+{
+    NULL_PTR_CHECK(podID, ERR_INVALID_INPUT_PARAM);
+
+    ClientContext context;
+    RunPodSandboxRequest request;
+    RunPodSandboxResponse response;
+
+    request.set_allocated_config(GenerateSandboxConfig());
+    Status status = stub_->RunPodSandbox(&context, request, &response);
+    if (!status.ok()) {
+        LOG_ERROR("err_code:%d: %s\n", status.error_code(), status.error_message().c_str());
+        return -1;
+    }
+
+    *podID = response.pod_sandbox_id();
+    return 0;
+}
+
+int RuntimeClient::StopPodSandBox(string &podID)
+{
+    ClientContext context;
+    StopPodSandboxRequest request;
+    StopPodSandboxResponse reply;
+
+    request.set_pod_sandbox_id(podID);
+    Status status = stub_->StopPodSandbox(&context, request, &reply);
+    if (!status.ok()) {
+        LOG_ERROR("err_code:%d: %s\n", status.error_code(), status.error_message().c_str());
+        return -1;
+    }
+
+    return 0;
+}
+
+int RuntimeClient::RemovePodSandBox(string &podID)
+{
+    ClientContext context;
+    RemovePodSandboxRequest request;
+    RemovePodSandboxResponse reply;
+
+    request.set_pod_sandbox_id(podID);
+    Status status = stub_->RemovePodSandbox(&context, request, &reply);
+    if (!status.ok()) {
+        LOG_ERROR("err_code:%d: %s\n", status.error_code(), status.error_message().c_str());
+        return -1;
+    }
+
+    return 0;
+}
+
+int RuntimeClient::CreateContainer
+(string &podID, string &imageName, string *contID, bool bRun, vector<string> &cmd)
+{
+    ClientContext context;
+    CreateContainerRequest request;
+    CreateContainerResponse reply;
+
+    ContainerConfig *containerCfg = new ContainerConfig;
+    ImageSpec *imageSpec = new ImageSpec;
+    ContainerMetadata *contMetadata = new ContainerMetadata;
+    char *contName = utils_generate_random_str(4);
+
+    imageSpec->set_image(imageName);
+    containerCfg->Clear();
+    containerCfg->set_allocated_image(imageSpec);
+
+    if (bRun) {
+        for (auto it : cmd) {
+            containerCfg->add_command(it);
+        }
+    }
+
+    contMetadata->Clear();
+    contMetadata->set_name(contName);
+    containerCfg->set_allocated_metadata(contMetadata);
+    free(contName);
+
+    request.set_pod_sandbox_id(podID);
+    request.set_allocated_config(containerCfg);
+    /* The allocated variable released by grpc, guess, need keep the same sdb config */
+    request.set_allocated_sandbox_config(GenerateSandboxConfig());
+
+    Status status = stub_->CreateContainer(&context, request, &reply);
+    if (!status.ok()) {
+        LOG_ERROR("err_code:%d: %s\n", status.error_code(), status.error_message().c_str());
+        return -1;
+    }
+    *contID = reply.container_id();
+
+    return StartContainer(*contID);
+}
+
+int RuntimeClient::StartContainer(string &contID)
+{
+    ClientContext context;
+    StartContainerRequest request;
+    StartContainerResponse reply;
+
+    request.set_container_id(contID);
+    Status status = stub_->StartContainer(&context, request, &reply);
+    if (!status.ok()) {
+        LOG_ERROR("err_code:%d: %s\n", status.error_code(), status.error_message().c_str());
+        return -1;
+    }
+
+    return 0;
+}
+
+int RuntimeClient::StopContainer(string &contID, int timeOut)
+{
+    ClientContext context;
+    StopContainerRequest request;
+    StopContainerResponse reply;
+
+    request.set_container_id(contID);
+    request.set_timeout(timeOut);
+
+    Status status = stub_->StopContainer(&context, request, &reply);
+    if (!status.ok()) {
+        LOG_ERROR("err_code:%d: %s\n", status.error_code(), status.error_message().c_str());
+        return -1;
+    }
+
+    return 0;
+}
+
+int RuntimeClient::RemoveContainer(string &contID)
+{
+    ClientContext context;
+    RemoveContainerRequest request;
+    RemoveContainerResponse reply;
+
+    request.set_container_id(contID);
+    Status status = stub_->RemoveContainer(&context, request, &reply);
+    if (!status.ok()) {
+        LOG_ERROR("err_code:%d: %s\n", status.error_code(), status.error_message().c_str());
+        return -1;
+    }
+
+    return 0;
+}
+
+int ImageClient::PullImage(string &imageName)
+{
+    ClientContext context;
+    PullImageRequest request;
+    PullImageResponse reply;
+    ImageSpec *imgSpec = new ImageSpec;
+
+    imgSpec->set_image(imageName);
+    request.set_allocated_sandbox_config(GenerateSandboxConfig());
+    request.set_allocated_image(imgSpec);
+    Status status = stub_->PullImage(&context, request, &reply);
+    if (!status.ok()) {
+        LOG_ERROR("err_code:%d: %s\n", status.error_code(), status.error_message().c_str());
+        return -1;
+    }
+
+    return 0;
+}
+
+int ImageClient::RemoveImage(string &imageName)
+{
+    ClientContext context;
+    RemoveImageRequest request;
+    RemoveImageResponse reply;
+    ImageSpec *imgSpec = new ImageSpec;
+
+    imgSpec->set_image(imageName);
+    request.set_allocated_image(imgSpec);
+    Status status = stub_->RemoveImage(&context, request, &reply);
+    if (!status.ok()) {
+        LOG_ERROR("err_code:%d: %s\n", status.error_code(), status.error_message().c_str());
+        return -1;
+    }
+
+    return 0;
+}
 
 ApiWrapperCls::ApiWrapperCls(string &cliName) : m_cliName(cliName)
 {
-    string runpCmd;
-    char buf[ID_LEN] = {0};
-
-    runpCmd = COMMAND_PREFIX + m_cliName + " runp " + POD_CONFIG;
-
-    utils_exe_cmd_read_out(runpCmd.c_str(), buf, ID_LEN);
-    m_podID = buf;
+    m_criClient = new RuntimeClient(grpc::CreateChannel(m_cliName, grpc::InsecureChannelCredentials()));
+    m_criClient->RunPodSandBox(&m_podID);
+    m_imageClient = new ImageClient(grpc::CreateChannel(m_cliName, grpc::InsecureChannelCredentials()));
 }
 
 ApiWrapperCls::~ApiWrapperCls()
 {
-    if (!m_podID.empty()) {
-        string stopCmd = COMMAND_PREFIX + m_cliName + " stopp " + m_podID;
-        string removeCmd = COMMAND_PREFIX + m_cliName + " rmp " + m_podID;
+    m_criClient->StopPodSandBox(m_podID);
+    m_criClient->RemovePodSandBox(m_podID);
 
-        utils_exe_cmd_read_out(stopCmd.c_str(), NULL, 0);
-        utils_exe_cmd_read_out(removeCmd.c_str(), NULL, 0);
-    }
+    delete m_criClient;
 }
 
 int ApiWrapperCls::pullImage(string &imageName)
 {
-    int ret = 0;
-    char *buf = (char *)UTILS_CALLOC(ID_LEN, RET_OUT_OF_MEMORY);
-
-    string cmd = COMMAND_PREFIX + m_cliName + " pull " + imageName;
-    ret = utils_exe_cmd_read_out(cmd.c_str(), buf, ID_LEN);
-    free(buf);
-
-    return ret;
+    return m_imageClient->PullImage(imageName);
 }
 
 int ApiWrapperCls::removeImage(string &imageName)
 {
-    int ret = 0;
-    char *buf = (char *)UTILS_CALLOC(ID_LEN, RET_OUT_OF_MEMORY);
-
-    string cmd = COMMAND_PREFIX + m_cliName + " rmi " + imageName;
-    ret = utils_exe_cmd_read_out(cmd.c_str(), buf, ID_LEN);
-    free(buf);
-
-    return ret;
-}
-
-static int GenerateRandContName()
-{
-    int ret;
-    char *cmd = NULL;
-    char buf[4] = {0};
-
-    char *randID = utils_generate_random_str(4);
-    ret = asprintf(&cmd, "sed -i \"s/$(grep name %s | cut -d : -f2)/ \\\"%s\\\"/g\" %s",
-                   CONT_CONFIG, randID, CONT_CONFIG);
-    if (ret < 0) {
-        return ret;
-    }
-
-    ret = utils_exe_cmd_read_out(cmd, buf, sizeof(buf));
-    free(cmd);
-    free(randID);
-
-    return ret;
+    return m_imageClient->RemoveImage(imageName);
 }
 
 int ApiWrapperCls::createContainer(string &imageName, string *contStr)
 {
-    int ret;
-    string createCmd;
-    char *buf = (char *)UTILS_CALLOC(ID_LEN, RET_OUT_OF_MEMORY);
-
-    memset(buf, 0, ID_LEN);
-    ret = GenerateRandContName();
-    RET_CHECK(ret, 0, goto exit);
-
-    createCmd = COMMAND_PREFIX + m_cliName + " create " + m_podID + " " + CONT_CONFIG + " " + POD_CONFIG;
-    ret = utils_exe_cmd_read_out(createCmd.c_str(), buf, ID_LEN);
-    if (ret != 0 || strlen(buf) == 0) {
-        LOG_ERROR("exe %s failed!\n", createCmd.c_str());
-        ret = -1;
-        goto exit;
-    }
-
-    *contStr = buf;
-    ret = 0;
-
-    LOG_DEBUG("Create cont:%s ret:%d\n", buf, ret);
-exit:
-    if (buf != NULL) {
-        free(buf);
-    }
+    std::vector<std::string> cmd;
+    int ret = m_criClient->CreateContainer(m_podID, imageName, contStr, false, cmd);
+    LOG_DEBUG("Create cont:%s ret:%d\n", contStr->c_str(), ret);
 
     return ret;
 }
 
 int ApiWrapperCls::startContainer(string &contStr)
 {
-    int ret = 0;
-    if (m_podID.empty()) {
-        LOG_ERROR("Pod not create yet!\n");
-        return -1;
-    }
-
-    char *buf = (char *)UTILS_CALLOC(ID_LEN, RET_OUT_OF_MEMORY);
-    string cmd = COMMAND_PREFIX + m_cliName + " start " + contStr;
-    ret = utils_exe_cmd_read_out(cmd.c_str(), buf, ID_LEN);
-
+    int ret = m_criClient->StartContainer(contStr);
     LOG_DEBUG("Start cont:%s ret:%d\n", contStr.c_str(), ret);
 
     return ret;
@@ -138,22 +286,13 @@ int ApiWrapperCls::startContainer(string &contStr)
 
 int ApiWrapperCls::runContainer(string &imageName, vector<string> &cmd, string *contStr)
 {
-    // TODO
-    return 0;
+    return m_criClient->CreateContainer(m_podID, imageName, contStr, true, cmd);
 }
 
 int ApiWrapperCls::stopContainer(string contId, int timeOut)
 {
-    int ret = 0;
-    if (m_podID.empty()) {
-        LOG_ERROR("Pod not create yet!\n");
-        return -1;
-    }
-
-    char *buf = (char *)UTILS_CALLOC(ID_LEN, RET_OUT_OF_MEMORY);
-    string cmd = COMMAND_PREFIX + m_cliName + " stop " + contId;
-    ret = utils_exe_cmd_read_out(cmd.c_str(), buf, ID_LEN);
-
+    int force = (timeOut < 0) ? 0 : timeOut;
+    int ret = m_criClient->StopContainer(contId, force);
     LOG_DEBUG("Stop cont:%s ret:%d\n", contId.c_str(), ret);
 
     return ret;
@@ -167,17 +306,9 @@ int ApiWrapperCls::stopAllContainer()
 
 int ApiWrapperCls::rmContainer(string ContId)
 {
-    int ret = 0;
-    if (m_podID.empty()) {
-        LOG_ERROR("Pod not create yet!\n");
-        return -1;
-    }
+    int ret = m_criClient->RemoveContainer(ContId);
+    LOG_DEBUG("Remove cont:%s ret:%d\n", ContId.c_str(), ret);
 
-    char *buf = (char *)UTILS_CALLOC(ID_LEN, RET_OUT_OF_MEMORY);
-    string cmd = COMMAND_PREFIX + m_cliName + " rm " + ContId;
-    ret = utils_exe_cmd_read_out(cmd.c_str(), buf, ID_LEN);
-
-    LOG_DEBUG("Rm cont:%s ret:%d\n", ContId.c_str(), ret);
-
-    return ret;
+    return 0;
 }
+#endif // #ifdef CRI_CLIENT
