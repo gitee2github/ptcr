@@ -129,7 +129,9 @@ int MeasureConfigCls::Init()
     m_timeOut = GetNodeKeyValue("time_out", 1);
     m_imageName = GetNodeKeyValue("image_name", "busybox");
     m_isCmdMixed = (bool)GetNodeKeyValue("mixed_cmd", true);
+    m_cntMemory = GetNodeKeyValue("memory_shim_count", 10);
 
+    GetStringVector("daemon_name", m_daemonName);
     GetStringVector("runtime_names", m_runtimeName);
     GetStringVector("runtime_endpoint", m_runtimeEndpoint);
     GetStringVector("start_cmd", m_runContCmd);

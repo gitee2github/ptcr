@@ -23,7 +23,8 @@
 
 using namespace std;
 
-wrapperManager::wrapperManager(CONT_RT_CONNECT_TYPE connectType, string &endPoint) : m_endPoint(endPoint)
+wrapperManager::wrapperManager(CONT_RT_CONNECT_TYPE connectType, string &endPoint)
+    : m_endPoint(endPoint)
 {
     m_connectType = connectType;
     m_wrapOps = NULL;

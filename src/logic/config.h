@@ -61,7 +61,10 @@ public:
     std::string                 m_imageName;
     /* mixed command or not */
     bool                        m_isCmdMixed;
+    /* calculate count of memory statistics */
+    unsigned                    m_cntMemory;
 
+    std::vector <std::string>   m_daemonName;
     std::vector <std::string>   m_runtimeName;
     std::vector <std::string>   m_runtimeEndpoint;
     std::vector <std::string>   m_runContCmd;

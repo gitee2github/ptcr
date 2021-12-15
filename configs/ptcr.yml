@@ -6,6 +6,10 @@ measure_count   :
         serially : 10
         parallerlly : 0
 
+daemon_name :
+        - isulad
+        - dockerd
+
 runtime_names :
         #- isula
         #- docker

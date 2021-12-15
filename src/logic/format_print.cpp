@@ -32,7 +32,7 @@ void MeasureResultCls::PrintAllResult()
     cout << "action\t|""count\t\t|""total spent\t\t|""average spent" << endl;
     for (auto item : m_measureResultVect) {
         cout << item->interfaceDesc << "\t|" << item->Cnt << "\t\t|" << item->totalSpent / 1000 <<
-            "\t\t\t|" << (item->totalSpent - item->maxSpent - item->minSpent) / (item->Cnt - 2) / 1000 << endl;
+             "\t\t\t|" << (item->totalSpent - item->maxSpent - item->minSpent) / (item->Cnt - 2) / 1000 << endl;
     }
 }
 
@@ -74,6 +74,22 @@ int FormatPrintCls::InsertMeasureCls(MeasureResultCls *msCls)
     return 0;
 }
 
+int FormatPrintCls::InsertDaemonRes(Mem_Daemon_T * res)
+{
+    NULL_PTR_CHECK(res, RET_INVALID_INPUT_PARAM);
+
+    m_memDaemonVect.push_back(res);
+    return 0;
+}
+
+int FormatPrintCls::InsertShimRes(Mem_Shim_T * res)
+{
+    NULL_PTR_CHECK(res, RET_INVALID_INPUT_PARAM);
+
+    m_memShimVect.push_back(res);
+    return 0;
+}
+
 void FormatPrintCls::GenerateReport(std::string &filePath)
 {
     if (m_measureResClsVect.empty()) {
@@ -97,7 +113,7 @@ void FormatPrintCls::GenerateReport(std::string &filePath)
     for (auto outter : m_measureResClsVect) {
         string context = outter->m_measureDesc + "_" + outter->m_endPoint + " ";
         for (auto inner : outter->m_measureResultVect) {
-            context += to_string((inner->totalSpent/inner->Cnt/1000)) + " ";
+            context += to_string((inner->totalSpent / inner->Cnt / 1000)) + " ";
         }
         fprintf(pF, "%s\n", context.c_str());
     }
@@ -116,6 +132,16 @@ void FormatPrintCls::formatPrint()
         cout << "TargetName:" + item->m_endPoint + "\tType: " << item->m_measureDesc << endl;
         cout << "------------------------------------------------------------------\n";
         item->PrintAllResult();
+        cout << "------------------------------------------------------------------\n";
+    }
+    cout << "\n------------------------------------------------------------------" << endl;
+    for (auto item : m_memDaemonVect) {
+        cout << "DaemonName: " + item->daemonName << "\nmem: " << item->daemonMemory << "kb" << endl;
+    }
+    cout << "------------------------------------------------------------------\n";
+    for (auto item : m_memShimVect) {
+        cout << "TargetName: " + item->endpoint << endl;
+        cout << "count: " << item->cnt << "\nTotal shim mem: " << item->shimTotalMemory << "kb" << endl;
         cout << "------------------------------------------------------------------\n";
     }
 }
