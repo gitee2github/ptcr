@@ -15,8 +15,49 @@
  ******************************************************************************/
 #ifndef SRC_WRAP_API_WRAP_H
 #define SRC_WRAP_API_WRAP_H
+#ifdef CRI_CLIENT // default open
 
 #include "wrap.h"
+#include <grpcpp/grpcpp.h>
+#include "api.grpc.pb.h"
+
+using grpc::Channel;
+using grpc::ClientContext;
+using grpc::Status;
+using namespace runtime::v1alpha2;
+
+class RuntimeClient final {
+public:
+    RuntimeClient(std::shared_ptr<Channel> channel)
+      : stub_(RuntimeService::NewStub(channel)) {}
+    ~RuntimeClient() {};
+
+    std::string GetVersion(const string &version);
+    int RunPodSandBox(string *podID);
+    int StopPodSandBox(string &podID);
+    int RemovePodSandBox(string &podID);
+
+    int CreateContainer(string &podID, string &imageName, string *contID, bool bRun, vector<string> &cmd);
+    int StartContainer(string &contID);
+    int StopContainer(string &contID, int timeOut);
+    int RemoveContainer(string &contID);
+    int RunContainer(string &imageName, vector<string> &cmd, string *contStr);
+
+private:
+    std::unique_ptr<RuntimeService::Stub> stub_;
+};
+
+class ImageClient final {
+public:
+    ImageClient(std::shared_ptr<Channel> channel)
+        : stub_(ImageService::NewStub(channel)) {}
+    ~ImageClient() {};
+
+    int PullImage(string &imageName);
+    int RemoveImage(string &imageName);
+private:
+    std::unique_ptr<ImageService::Stub> stub_;
+};
 
 class ApiWrapperCls : public measureWrapperCls {
 public:
@@ -35,6 +76,9 @@ public:
 private:
     string m_cliName;
     string m_podID;
+    RuntimeClient *m_criClient;
+    ImageClient *m_imageClient;
 };
 
+#endif
 #endif

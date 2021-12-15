@@ -460,7 +460,9 @@ int measureCls::startMeasure(MeasureConfigCls *config)
         wrapperManager *cliWrapper = new wrapperManager(CONNECT_BY_CLI, it);
         NULL_PTR_CHECK(cliWrapper, return -1);
 
-        cliWrapper->init();
+        if (cliWrapper->init()) {
+            break;
+        }
         WrapContInfoCls::GetInstance()->InsertWrapper(cliWrapper);
         runWrapperRepeat(config, cliWrapper);
 
@@ -471,7 +473,9 @@ int measureCls::startMeasure(MeasureConfigCls *config)
         wrapperManager *apiWrapper = new wrapperManager(CONNECT_BY_CRI, it);
         NULL_PTR_CHECK(apiWrapper, return -1);
 
-        apiWrapper->init();
+        if (apiWrapper->init()) {
+            break;
+        }
         WrapContInfoCls::GetInstance()->InsertWrapper(apiWrapper);
         runWrapperRepeat(config, apiWrapper);
         apiWrapper->Deinit();

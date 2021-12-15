@@ -35,12 +35,18 @@ wrapperManager::~wrapperManager()
 
 int wrapperManager::init()
 {
+    int ret = 0;
     switch (m_connectType) {
         case CONNECT_BY_CLI:
             m_wrapOps = new cliWrapperCls(m_endPoint);
             break;
         case CONNECT_BY_CRI:
+#ifdef CRI_CLIENT
             m_wrapOps = new ApiWrapperCls(m_endPoint);
+#else
+            LOG_ERROR("CRI client not open, use cmake -DENABLE_CRI_CLIENT=ON open first!\n");
+            ret = -1;
+#endif
             break;
         case CONNECT_BY_REST:
             m_wrapOps = NULL; // TODO;
@@ -49,7 +55,7 @@ int wrapperManager::init()
             m_wrapOps = NULL; // TODO;
             break;
     }
-    return 0;
+    return ret;
 }
 
 void wrapperManager::Deinit()

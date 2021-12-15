@@ -4,12 +4,13 @@ mixed_cmd       : 0
 
 measure_count   :
         serially : 10
-        parallerlly : 10
+        parallerlly : 0
 
 runtime_names :
-        - isula
-        - docker
+        #- isula
+        #- docker
 runtime_endpoint:
+        - unix:///var/run/isulad.sock
 start_cmd :
         - /bin/sh
         - -c
