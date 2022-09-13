@@ -28,6 +28,17 @@ typedef struct {
     int Cnt;
 } Measure_Result_T;
 
+typedef struct {
+    string daemonName;
+    long int daemonMemory;
+} Mem_Daemon_T;
+
+typedef struct {
+    string endpoint;
+    long int shimTotalMemory;
+    unsigned cnt;
+} Mem_Shim_T;
+
 class MeasureResultCls {
 public:
     int InsertMeasureReulst(Measure_Result_T *measureRes);
@@ -56,6 +67,9 @@ public:
 
     int InsertMeasureCls(MeasureResultCls *);
 
+    int InsertDaemonRes(Mem_Daemon_T *);
+    int InsertShimRes(Mem_Shim_T *);
+
     void formatPrint();
 
     void GenerateReport(std::string &filePath);
@@ -73,7 +87,9 @@ private:
     FormatPrintCls() {};
     ~FormatPrintCls() {};
 
-    std::vector<MeasureResultCls *> m_measureResClsVect;
+    std::vector<MeasureResultCls *> m_measureResClsVect; // time
+    std::vector<Mem_Daemon_T *> m_memDaemonVect; // daemon memory
+    std::vector<Mem_Shim_T *>   m_memShimVect;   // shim memory
 };
 
 const char *GetMeasureTypeDesc(MEASURE_TYPE_E type);

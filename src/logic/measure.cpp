@@ -14,6 +14,7 @@
  * Description: measure container runtime logic implement.
  ******************************************************************************/
 #include "measure.h"
+#include "memory.h"
 #include <sys/time.h>
 #include <thread>
 #include "logger.h"
@@ -330,7 +331,8 @@ public:
         return 0;
     }
 
-    int ParallyMixedThrd(MixCmdCls *mixedCreate, MixCmdCls *mixedStart, MixCmdCls *mixedStop, MixCmdCls *mixedRemove, MixCmdCls *mixedRun);
+    int ParallyMixedThrd(MixCmdCls *mixedCreate, MixCmdCls *mixedStart, MixCmdCls *mixedStop, MixCmdCls *mixedRemove,
+                         MixCmdCls *mixedRun);
 private:
     vector<std::thread *> m_stdThrds;
 };
@@ -456,8 +458,8 @@ int measureCls::startMeasure(MeasureConfigCls *config)
 {
     NULL_PTR_CHECK(config, RET_INVALID_INPUT_PARAM);
 
-    for (auto it : config->m_runtimeName) {
-        wrapperManager *cliWrapper = new wrapperManager(CONNECT_BY_CLI, it);
+    for (unsigned i = 0; i < config->m_runtimeName.size(); i++) {
+        wrapperManager *cliWrapper = new wrapperManager(CONNECT_BY_CLI, config->m_runtimeName[i]);
         NULL_PTR_CHECK(cliWrapper, return -1);
 
         if (cliWrapper->init()) {
@@ -469,8 +471,8 @@ int measureCls::startMeasure(MeasureConfigCls *config)
         cliWrapper->Deinit();
     }
 
-    for (auto it : config->m_runtimeEndpoint) {
-        wrapperManager *apiWrapper = new wrapperManager(CONNECT_BY_CRI, it);
+    for (unsigned i = 0; i < config->m_runtimeEndpoint.size(); i++) {
+        wrapperManager *apiWrapper = new wrapperManager(CONNECT_BY_CRI, config->m_runtimeEndpoint[i]);
         NULL_PTR_CHECK(apiWrapper, return -1);
 
         if (apiWrapper->init()) {
@@ -478,8 +480,13 @@ int measureCls::startMeasure(MeasureConfigCls *config)
         }
         WrapContInfoCls::GetInstance()->InsertWrapper(apiWrapper);
         runWrapperRepeat(config, apiWrapper);
+
         apiWrapper->Deinit();
     }
+
+    MeasureMemImpl memImpl(config->m_runtimeName, config->m_daemonName, config);
+    memImpl.PsDaemonOutsideFunc();
+    memImpl.PsShimOutsideFunc();
 
     FormatPrintCls::GetInstance()->formatPrint();
     FormatPrintCls::GetInstance()->GenerateReport(config->m_outputFile);

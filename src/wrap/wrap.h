@@ -115,6 +115,12 @@ typedef struct {
     vector<string> runCmd;
 } Run_Cont_Args_T;
 
+typedef struct {
+    string *contSuffix;
+    wrapperManager *wm;
+    long int *memoryUsage;
+} Ps_Outside_Cont_Args_T;
+
 int MeasureCreateInterface(Create_Cont_Args_T *CreateArgs);
 int MeasureStartInterface(Start_Cont_Args_T *startArgs);
 int MeasureStopInterface(Stop_Cont_Args_T *stopArgs);

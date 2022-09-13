@@ -152,3 +152,43 @@ int utils_exe_cmd_read_out(const char *command, char *out, int size)
 
     return 0;
 }
+
+int get_cont_id_by_name(const char *endpoint, const char *name, char id[CONTAINER_ID_SIZE])
+{
+    NULL_PTR_CHECK(name, RET_INVALID_INPUT_PARAM);
+
+    char *command = (char *)UTILS_CALLOC(sizeof(char) * MAX_COMMAND_SIZE, RET_OUT_OF_MEMORY);
+    sprintf(command, "%s ps | grep %s | awk '{print $1}'", endpoint, name);
+
+    utils_exe_cmd_read_out(command, id, CONTAINER_ID_SIZE);
+
+    free(command);
+    return 0;
+}
+
+int read_memory(const char *id, int *rss)
+{
+    NULL_PTR_CHECK(id, RET_INVALID_INPUT_PARAM);
+
+    char *command = (char *)UTILS_CALLOC(sizeof(char) * MAX_COMMAND_SIZE, RET_OUT_OF_MEMORY);
+    sprintf(command, "ps -aux | grep %s", id);
+
+    FILE *pF = popen(command, "r");
+    NULL_PTR_CHECK(pF, ERR_FAILURE);
+
+    char *out = (char *)UTILS_CALLOC(sizeof(char) * MAX_PS_READ_SIZE, RET_OUT_OF_MEMORY);
+    fgets(out, MAX_PS_READ_SIZE, pF);
+
+    char *delim = " ";
+    char *rss_str = strtok(out, delim);
+    for (int i = 0; i < PS_RSS_INDEX - 1; i++) {
+        rss_str = strtok(NULL, delim);
+    }
+    *rss = atoi(rss_str);
+
+    free(out);
+    pclose(pF);
+    free(command);
+
+    return 0;
+}

@@ -29,7 +29,7 @@ using namespace runtime::v1alpha2;
 class RuntimeClient final {
 public:
     RuntimeClient(std::shared_ptr<Channel> channel)
-      : stub_(RuntimeService::NewStub(channel)) {}
+        : stub_(RuntimeService::NewStub(channel)) {}
     ~RuntimeClient() {};
 
     std::string GetVersion(const string &version);
